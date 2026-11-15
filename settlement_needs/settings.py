@@ -103,9 +103,9 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 
 # Celery Beat Schedule
 CELERY_BEAT_SCHEDULE = {
-    'ingest-reddit-posts-every-hour': {
+    'ingest-reddit-posts-weekly': {
         'task': 'ingestion.tasks.ingest_reddit_posts',
-        'schedule': config('DATA_INGESTION_INTERVAL', default=3600, cast=int),
+        'schedule': config('DATA_INGESTION_INTERVAL', default=604800, cast=int),  # 604800 seconds = 1 week
     },
 }
 

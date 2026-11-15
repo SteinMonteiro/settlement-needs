@@ -11,23 +11,31 @@ logger = logging.getLogger('ingestion')
 
 
 # Target subreddits for data collection
+# Based on "Searching for settlement information on Reddit" (Monteiro, 2024)
+# Ordered by frequency of settlement-related posts
 TARGET_SUBREDDITS = [
-    'ImmigrationCanada',
-    'PersonalFinanceCanada',
-    'askTO',
+    'ImmigrationCanada',      # 24.6% of posts in paper
+    'PersonalFinanceCanada',  # 17.5% of posts in paper
+    'askTO',                  # 4.1% of posts in paper
+    'legaladvicecanada',      # 2.1% of posts in paper
 ]
 
 # Keywords to filter relevant posts
+# Derived from keywords analysis in Monteiro 2024 paper
+# These keywords identify newcomers seeking settlement information and resources
 TARGET_KEYWORDS = [
     'new to canada',
-    'copr',
-    'settlement',
-    'housing',
-    'employment',
-    'health',
-    'language',
-    'visa',
-    'immigration',
+    'just arrived in canada',
+    'just migrated in canada',
+    'just immigrated in canada',
+    'newcomer to canada',
+    'newcomers to canada',
+    'newcomer in canada',
+    'new immigrant in canada',
+    'new migrant in canada',
+    'received my copr',
+    'received our copr',
+    'confirmation of permanent residency',
 ]
 
 
@@ -49,23 +57,35 @@ def get_reddit_client():
 
 def is_relevant_post(post):
     """
-    Check if a post is relevant based on keywords.
+    Check if a post is relevant based on TARGET_KEYWORDS.
+    
+    Implements keyword filtering methodology from Monteiro 2024 paper.
+    Posts are considered relevant if they contain any of the target keywords
+    in the title or content (case-insensitive comparison).
+    
+    This identifies posts from newcomers seeking settlement resources and advice.
     """
     text = f"{post.title} {post.selftext}".lower()
     return any(keyword in text for keyword in TARGET_KEYWORDS)
 
 
-def collect_posts_from_subreddit(reddit, subreddit_name, limit=100):
+def collect_posts_from_subreddit(reddit, subreddit_name, limit=500):
     """
     Collect posts from a specific subreddit.
+    
+    Methodology based on "Searching for settlement information on Reddit" (Monteiro, 2024).
+    Fetches recent posts from the subreddit and filters by TARGET_KEYWORDS to identify
+    posts from newcomers seeking settlement resources and information.
     
     Args:
         reddit: PRAW Reddit instance
         subreddit_name: Name of subreddit (without r/)
-        limit: Number of posts to collect
+        limit: Number of posts to collect (default: 500 to capture ~1 week of activity)
     
     Returns:
-        List of raw post data dictionaries
+        List of raw post data dictionaries with fields:
+        - post_id, subreddit, author, title, content, url
+        - upvotes, comments_count, posted_at
     """
     posts = []
     try:
@@ -100,8 +120,21 @@ def collect_posts_from_subreddit(reddit, subreddit_name, limit=100):
 @shared_task(bind=True)
 def ingest_reddit_posts(self):
     """
-    Main Celery task to ingest Reddit posts.
-    Collects, filters, and stores posts in database.
+    Main Celery task to ingest Reddit posts from settlement-related subreddits.
+    
+    Runs weekly (configurable via DATA_INGESTION_INTERVAL in settings.py).
+    
+    Data collection methodology based on "Searching for settlement information on Reddit" 
+    (Monteiro, 2024). Process:
+    1. Connects to Reddit API (PRAW)
+    2. Fetches ~500 recent posts from each target subreddit
+    3. Filters by TARGET_KEYWORDS to identify settlement-related posts
+    4. Applies NoiseFilter to remove spam, promotional content, and low-quality posts
+    5. Stores valid posts in database
+    6. Logs results for monitoring
+    
+    Returns:
+        dict: Summary of ingestion results (posts_collected, posts_filtered, posts_saved)
     """
     log_entry = IngestionLog.objects.create(
         task_id=self.request.id,

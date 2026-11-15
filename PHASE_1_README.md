@@ -12,20 +12,32 @@ This Django application collects Reddit posts about settlement needs from newcom
 - ✅ Admin interface for monitoring and triage
 
 ### Target Subreddits
-- r/ImmigrationCanada
-- r/PersonalFinanceCanada
-- r/askTO
+Based on "Searching for settlement information on Reddit" (Monteiro, 2024), ordered by frequency:
+- r/ImmigrationCanada (24.6% of posts)
+- r/PersonalFinanceCanada (17.5% of posts)
+- r/askTO (4.1% of posts)
+- r/legaladvicecanada (2.1% of posts)
 
 ### Target Keywords
+Keywords are derived from Monteiro 2024 paper analyzing Reddit posts from newcomers to Canada. These keywords identify people seeking settlement information and resources:
 - "new to canada"
-- "copr"
-- "settlement"
-- "housing"
-- "employment"
-- "health"
-- "language"
-- "visa"
-- "immigration"
+- "just arrived in canada"
+- "just migrated in canada"
+- "just immigrated in canada"
+- "newcomer to canada"
+- "newcomers to canada"
+- "newcomer in canada"
+- "new immigrant in canada"
+- "new migrant in canada"
+- "received my copr"
+- "received our copr"
+- "confirmation of permanent residency"
+
+### Collection Frequency
+- **Runs weekly** (every 7 days) via Celery Beat scheduler
+- Configurable via `DATA_INGESTION_INTERVAL` environment variable (in seconds; default = 604800 = 1 week)
+- Each run fetches ~500 recent posts per subreddit to capture weekly activity
+- Methodology based on Monteiro 2024 paper's approach to identifying settlement-related posts
 
 ## Setup Instructions
 
@@ -179,12 +191,19 @@ The `NoiseFilter` class in `ingestion/filters.py` removes posts that:
 
 ## Scheduling
 
-Ingestion runs automatically every hour (configurable via `DATA_INGESTION_INTERVAL` in `.env`).
+Ingestion runs automatically **every week** (604800 seconds by default, configurable via `DATA_INGESTION_INTERVAL` in `.env`).
 
 The schedule is managed by Celery Beat:
 - Reads from `CELERY_BEAT_SCHEDULE` in `settings.py`
-- Executes `ingestion.tasks.ingest_reddit_posts`
+- Executes `ingestion.tasks.ingest_reddit_posts` weekly
+- Each run fetches ~500 posts per subreddit
 - Results stored in IngestionLog table
+
+To customize the frequency (in seconds):
+- Weekly: `DATA_INGESTION_INTERVAL=604800` (default)
+- Daily: `DATA_INGESTION_INTERVAL=86400`
+- Twice daily: `DATA_INGESTION_INTERVAL=43200`
+- Hourly: `DATA_INGESTION_INTERVAL=3600`
 
 ## Monitoring
 
