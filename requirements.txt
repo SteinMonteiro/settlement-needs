@@ -1,0 +1,11 @@
+Django==5.1.0
+psycopg2-binary==2.9.9
+python-decouple==3.8
+PRAW==7.7.0
+celery==5.3.1
+redis==5.0.0
+django-celery-beat==2.5.0
+django-celery-results==2.5.0
+requests==2.31.0
+python-dateutil==2.8.2
+Pillow==10.0.0
